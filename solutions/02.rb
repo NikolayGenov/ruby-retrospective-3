@@ -37,15 +37,15 @@ class TodoList
   end
 
   def tasks_todo
-    (filter Criteria.status :todo).to_a.size
+    filter(Criteria.status :todo).to_a.size
   end
 
   def tasks_in_progress
-    (filter Criteria.status :current).to_a.size
+    filter(Criteria.status :current).to_a.size
   end
 
   def tasks_completed
-    (filter Criteria.status :done).to_a.size
+    filter(Criteria.status :done).to_a.size
   end
 
   def each(&block)
