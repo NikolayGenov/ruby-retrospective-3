@@ -23,26 +23,23 @@ end
 
 class Array
   def frequencies
-    reduce(Hash.new(0)) { |value,key| value if value[key] += 1 }
+    each_with_object(Hash.new(0)) { |key, result| result[key] += 1 }
   end
 
   def average
-    reduce { |sum,number| sum + number } / count.to_f
+    reduce(&:+) / count.to_f
   end
 
   def drop_every(n)
-    select.each_with_index { |_,i| (i + 1).remainder(n).nonzero? }
+    each_slice(n).map { |slice| slice.take(n - 1) }.reduce(&:+) or []
   end
 
-  #OPTIMIZE
   def combine_with(other)
-    list = []
+    longer, shorter = length > other.length ? [self, other] : [other, self]
 
-    until count.zero? and other.count.zero? do
-      list << shift unless empty?
-      list << other.shift unless other.empty?
-    end
+    short_part = take(shorter.length).zip(other.take(shorter.length)).flatten(1)
+    rest       = longer.drop(shorter.length)
 
-    list
+    short_part + rest
   end
 end
