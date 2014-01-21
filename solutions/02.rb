@@ -20,7 +20,7 @@ class TodoList
     TodoList.new parsed_text.tasks
   end
 
-  def initialize(tasks = [])
+  def initialize(tasks)
     @tasks = tasks
   end
 
@@ -73,10 +73,11 @@ class TodoList::Parser
   end
 
   def process_attributes(status, description, priority, tags)
-    [status.downcase.to_sym,
-     description,
-     priority.downcase.to_sym,
-     tags.split(',').map(&:strip),
+    [
+      status.downcase.to_sym,
+      description,
+      priority.downcase.to_sym,
+      tags.split(',').map(&:strip),
     ]
   end
 end
@@ -111,10 +112,10 @@ class Criterion
   end
 
   def |(other)
-    Criterion.new { |task| matches? task or other.matches? task }
+    Criterion.new { |task| matches? task or  other.matches? task }
   end
 
   def !
-    Criterion.new { |task| not matches? task  }
+    Criterion.new { |task| not matches? task }
   end
 end
