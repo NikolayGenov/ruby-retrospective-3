@@ -1,5 +1,5 @@
 module Asm
-  class Evaluator
+  class Asm
     operations = {
       mov: :initialize_reg,
       inc: :increase,
@@ -10,7 +10,7 @@ module Asm
 
     operations.each do |operation_name, operation|
       define_method operation_name do |destination, value = 1|
-        @operations_queue << [operation, destination, value ]
+      @operations_queue << [operation, destination, value ]
       end
     end
 
@@ -23,7 +23,7 @@ module Asm
     help_operations.each do |operation_name, operation|
       define_method operation_name do |destination ,other|
         @registers[destination] =
-        @registers[destination].public_send operation, get_value(other)
+          @registers[destination].public_send operation, get_value(other)
       end
     end
 
@@ -73,9 +73,6 @@ module Asm
 
     private
 
-    def get_value(value)
-      @registers[value] or value
-    end
 
     def call_jump(type, label_position)
       if @cmp.method(@jumps_list[type]).call 0
@@ -90,7 +87,32 @@ module Asm
     end
   end
 
+  class Register
+    attr_reader  :value
+
+    def initialize
+      @value = 0
+    end
+
+    def mov(source)
+      @value = get_value source
+    end
+
+    def inc(source)
+      @value += get_value source 1
+    end
+
+    def dec(source = 1)
+      @value -= get_value source
+    end
+    private
+
+    def get_value(source)
+      source.is_a?(self.class) ? source.value : source
+    end
+  end
+
   def self.asm(&block)
-    Evaluator.new(&block).perform_operations
+    Asm.new(&block).perform_operations
   end
 end
