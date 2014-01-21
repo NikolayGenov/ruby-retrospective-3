@@ -1,31 +1,4 @@
 module Graphics
-  class Canvas
-    attr_reader :width, :height
-
-    def initialize(width, height)
-      @width  = width
-      @height = height
-      @pixels = { }
-    end
-
-    def set_pixel(x, y)
-      @pixels[[x, y]] = true
-    end
-
-    def pixel_at?(x, y)
-      @pixels[[x, y]]
-    end
-
-    def draw(figure)
-      figure.rasterize_on(self)
-    end
-
-    def render_as(renderer)
-      renderer.new(self).render
-    end
-
-  end
-
   class Point
     attr_reader :x, :y
 
@@ -37,6 +10,7 @@ module Graphics
     def rasterize_on(canvas)
       canvas.set_pixel x, y
     end
+
     def ==(other)
       (self <=> other).zero?
     end
@@ -67,7 +41,6 @@ module Graphics
       (self <=> other).zero?
     end
 
-
     alias_method :eql?, :==
 
     def hash
@@ -77,7 +50,6 @@ module Graphics
     def <=>(other)
       [from, to] <=> [other.from, other.to]
     end
-
 
     class BresenhamLineRasterization
       def initialize(from_x, from_y, to_x, to_y)
@@ -104,10 +76,10 @@ module Graphics
       end
 
       def error_delta
-        delta_x = @to_x - @from_x
-        delta_y = (@to_y - @from_y).abs
+        delta_x =  @to_x - @from_x
+        delta_y = (@to_y - @from_y).abs.to_f
 
-        delta_y.to_f / delta_x
+        delta_y / delta_x
       end
 
       def vertical_drawing_direction
@@ -127,8 +99,8 @@ module Graphics
       def calculate_next_y_approximation
         @error += error_delta
 
-        if @error >= 0.5
-          @error -= 1.0
+        if @error * 2 >= 1
+          @error -= 1
           @y += vertical_drawing_direction
         end
       end
@@ -150,10 +122,7 @@ module Graphics
       @left,@right = [left,right].minmax
       @top_left, @bottom_right = @left, @right
       flip_points if @left.y > @right.y
-      @bottom_left = Point.new(@top_left.x, @bottom_right.y)
-      @top_right   = Point.new(@bottom_right.x, @top_left.y)
     end
-
 
     def rasterize_on(canvas)
       [
@@ -163,6 +132,15 @@ module Graphics
         Line.new(bottom_left,  top_left)
       ].each { |line| line.rasterize_on canvas }
     end
+
+    def bottom_left
+      Point.new @top_left.x,     @bottom_right.y
+    end
+
+    def top_right
+      Point.new @bottom_right.x, @top_left.y
+    end
+
     def ==(other)
       (self <=> other).zero?
     end
@@ -178,9 +156,36 @@ module Graphics
     end
 
     private
+
     def flip_points
       @top_left     = Point.new @left.x, @right.y
       @bottom_right = Point.new @right.x, @left.y
+    end
+  end
+
+  class Canvas
+    attr_reader :width, :height
+
+    def initialize(width, height)
+      @width  = width
+      @height = height
+      @pixels = {}
+    end
+
+    def set_pixel(x, y)
+      @pixels[[x, y]] = true
+    end
+
+    def pixel_at?(x, y)
+      @pixels[[x, y]]
+    end
+
+    def draw(figure)
+      figure.rasterize_on(self)
+    end
+
+    def render_as(renderer)
+      renderer.new(self).render
     end
   end
 
