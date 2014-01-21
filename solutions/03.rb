@@ -18,7 +18,7 @@ module Graphics
     alias_method :eql?, :==
 
     def hash
-      @x.hash ^ @y.hash
+      x.hash ^ y.hash
     end
 
     def <=>(other)
@@ -44,7 +44,7 @@ module Graphics
     alias_method :eql?, :==
 
     def hash
-      @from.hash ^ @to.hash
+      from.hash ^ to.hash
     end
 
     def <=>(other)
@@ -116,7 +116,7 @@ module Graphics
   end
 
   class Rectangle
-    attr_reader :top_left, :top_right, :bottom_left, :bottom_right, :left, :right
+    attr_reader :top_left, :bottom_right, :left, :right
 
     def initialize(left, right)
       @left,@right = [left,right].minmax
@@ -134,11 +134,11 @@ module Graphics
     end
 
     def bottom_left
-      Point.new @top_left.x,     @bottom_right.y
+      Point.new top_left.x,     bottom_right.y
     end
 
     def top_right
-      Point.new @bottom_right.x, @top_left.y
+      Point.new bottom_right.x, top_left.y
     end
 
     def ==(other)
@@ -148,18 +148,18 @@ module Graphics
     alias_method :eql?, :==
 
     def hash
-      @top_left.hash ^ @bottom_right.hash
+      top_left.hash ^ bottom_right.hash
     end
 
     def <=>(other)
-      [@top_left, @bottom_right] <=> [other.top_left, other.bottom_right]
+      [top_left, bottom_right] <=> [other.top_left, other.bottom_right]
     end
 
     private
 
     def flip_points
-      @top_left     = Point.new @left.x, @right.y
-      @bottom_right = Point.new @right.x, @left.y
+      @top_left     = Point.new left.x,  right.y
+      @bottom_right = Point.new right.x, left.y
     end
   end
 
