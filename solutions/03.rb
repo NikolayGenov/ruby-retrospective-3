@@ -5,71 +5,25 @@ module Graphics
     def initialize(width, height)
       @width  = width
       @height = height
-      @matrix = Array.new(height) { Array.new(width) {:blank} }
+      @pixels = { }
     end
 
     def set_pixel(x, y)
-      @matrix[y][x] = :full
+      @pixels[[x, y]] = true
     end
 
     def pixel_at?(x, y)
-      @matrix[y][x] == :full
+      @pixels[[x, y]]
     end
 
     def draw(figure)
-      case figure
-      when Point     then draw_point(figure)
-      when Line      then draw_line(figure)
-      when Rectangle then draw_rectangle(figure)
-      end
+      figure.rasterize_on(self)
     end
 
-    def render_as(render)
-      render.new(self).render
+    def render_as(renderer)
+      renderer.new(self).render
     end
 
-    private
-    def draw_point(point)
-      set_pixel(point.x, point.y)
-    end
-
-    def draw_line(line)
-      bresenham_algorithm(line.from.x, line.from.y, line.to.x, line.to.y)
-    end
-
-    def draw_rectangle(figure)
-      draw_line(Line.new(figure.top_left,    figure.top_right))
-      draw_line(Line.new(figure.bottom_left, figure.bottom_right))
-      draw_line(Line.new(figure.top_left,    figure.bottom_left))
-      draw_line(Line.new(figure.top_right,   figure.bottom_right))
-    end
-
-    def bresenham_algorithm(x_1, y_1, x_2, y_2)
-      delta_x, delta_y = (x_2 - x_1).abs, (y_2 - y_1).abs
-      slope_x          = x_1 < x_2 ? 1 : -1
-      slope_y          = y_1 < y_2 ? 1 : -1
-      error            = delta_x - delta_y
-
-      set_pixel(x_1,y_1)
-
-      bresenham_loop(x_1, y_1, x_2, y_2, error, slope_x, slope_y, delta_x, delta_y)
-    end
-
-    def bresenham_loop(x_1, y_1, x_2, y_2, error, slope_x, slope_y, delta_x, delta_y)
-      while x_1 != x_2 or y_1 != y_2  do
-        delta_error = error * 2
-        x_1, error = move_point(x_1, slope_x, error, -delta_y) if -delta_error < delta_y
-        y_1, error = move_point(y_1, slope_y, error,  delta_x) if  delta_error < delta_x
-
-        set_pixel(x_1, y_1)
-      end
-    end
-
-    def move_point(point, slope, error, delta_point)
-      error += delta_point
-      point += slope
-      [point, error]
-    end
   end
 
   class Point
@@ -80,6 +34,9 @@ module Graphics
       @y = y
     end
 
+    def rasterize_on(canvas)
+      canvas.set_pixel x, y
+    end
     def ==(other)
       (self <=> other).zero?
     end
@@ -102,9 +59,14 @@ module Graphics
       @from, @to = [from,to].minmax
     end
 
+    def rasterize_on(canvas)
+      BresenhamLineRasterization.new(from.x, from.y, to.x, to.y).rasterize_on(canvas)
+    end
+
     def ==(other)
       (self <=> other).zero?
     end
+
 
     alias_method :eql?, :==
 
@@ -114,6 +76,70 @@ module Graphics
 
     def <=>(other)
       [from, to] <=> [other.from, other.to]
+    end
+
+
+    class BresenhamLineRasterization
+      def initialize(from_x, from_y, to_x, to_y)
+        @from_x, @from_y = from_x, from_y
+        @to_x, @to_y     = to_x, to_y
+        @steep_slope     = (@to_y - @from_y).abs > (@to_x - @from_x).abs
+      end
+
+      def rasterize_on(canvas)
+        rotate_coordinates_by_ninety_degrees if @steep_slope
+        swap_from_and_to if @from_x > @to_x
+
+        draw_line_pixels_on canvas
+      end
+
+      def rotate_coordinates_by_ninety_degrees
+        @from_x, @from_y = @from_y, @from_x
+        @to_x,   @to_y   = @to_y,   @to_x
+      end
+
+      def swap_from_and_to
+        @from_x, @to_x = @to_x, @from_x
+        @from_y, @to_y = @to_y, @from_y
+      end
+
+      def error_delta
+        delta_x = @to_x - @from_x
+        delta_y = (@to_y - @from_y).abs
+
+        delta_y.to_f / delta_x
+      end
+
+      def vertical_drawing_direction
+        @from_y < @to_y ? 1 : -1
+      end
+
+      def draw_line_pixels_on(canvas)
+        @error = 0.0
+        @y     = @from_y
+
+        @from_x.upto(@to_x).each do |x|
+          set_pixel_on canvas, x, @y
+          calculate_next_y_approximation
+        end
+      end
+
+      def calculate_next_y_approximation
+        @error += error_delta
+
+        if @error >= 0.5
+          @error -= 1.0
+          @y += vertical_drawing_direction
+        end
+      end
+
+      def set_pixel_on(canvas, x, y)
+        if @steep_slope
+          canvas.set_pixel y, x
+        else
+          canvas.set_pixel x, y
+        end
+      end
     end
   end
 
@@ -128,6 +154,15 @@ module Graphics
       @top_right   = Point.new(@bottom_right.x, @top_left.y)
     end
 
+
+    def rasterize_on(canvas)
+      [
+        Line.new(top_left,     top_right),
+        Line.new(top_right,    bottom_right),
+        Line.new(bottom_right, bottom_left),
+        Line.new(bottom_left,  top_left)
+      ].each { |line| line.rasterize_on canvas }
+    end
     def ==(other)
       (self <=> other).zero?
     end
@@ -164,8 +199,8 @@ module Graphics
 
     class Ascii < Base
       def render
-        pixels = zero.upto(canvas.height.pred).map do |y|
-          zero.upto(canvas.width.pred).map { |x| pixel_at(x, y) }
+        pixels = 0.upto(canvas.height.pred).map do |y|
+          0.upto(canvas.width.pred).map { |x| pixel_at(x, y) }
         end
 
         join_lines pixels.map { |line| join_pixels line }
@@ -194,7 +229,7 @@ module Graphics
       end
     end
 
-    class Html < Base
+    class Html < Ascii
       TEMPLATE ='<!DOCTYPE html>
         <html>
         <head>
