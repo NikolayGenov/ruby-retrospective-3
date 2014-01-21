@@ -1,67 +1,4 @@
 module Graphics
-  TEMPLATE_HTML = [<<START, <<END]
-<!DOCTYPE html>
-<html>
-<head>
-<title>Rendered Canvas</title>
-<style type="text/css">
-.canvas {
-  font-size: 1px;
-  line-height: 1px;
-}
-.canvas * {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
-}
-.canvas i {
-  background-color: #eee;
-}
-.canvas b {
-  background-color: #333;
-}
-</style>
-</head>
-<body>
-<div class="canvas">
-START
-</div>
-</body>
-</html>
-END
-  module Renderers
-    class Ascii
-      SYMBOLS = {'blank' => '-', 'full' => '@'}.freeze
-      PATERN = /#{SYMBOLS.keys.join('|')}/.freeze
-
-      def initialize(matrix)
-        @matrix = matrix
-      end
-
-      def rend
-        rendered_matrix = []
-        @matrix.each { |row| rendered_matrix << row.join('').gsub(PATERN, SYMBOLS) }
-        rendered_matrix.join("\n")
-      end
-    end
-
-    class Html
-      SYMBOLS = {'blank' => '<i></i>', 'full' => '<b></b>'}.freeze
-      PATERN = /#{SYMBOLS.keys.join('|')}/.freeze
-
-      def initialize(matrix)
-        @matrix = matrix
-      end
-
-      def rend
-        rendered_matrix = []
-        @matrix.each { |row| rendered_matrix << row.join('').gsub(PATERN, SYMBOLS) }
-        TEMPLATE_HTML[0] + rendered_matrix.join('<br>') + TEMPLATE_HTML[1]
-      end
-    end
-  end
-
   class Canvas
     attr_reader :width, :height
 
@@ -88,7 +25,7 @@ END
     end
 
     def render_as(render)
-      render.new(@matrix).rend
+      render.new(self).render
     end
 
     private
@@ -209,6 +146,103 @@ END
     def flip_points
       @top_left     = Point.new @left.x, @right.y
       @bottom_right = Point.new @right.x, @left.y
+    end
+  end
+
+  module Renderers
+    class Base
+      attr_reader :canvas
+
+      def initialize(canvas)
+        @canvas = canvas
+      end
+
+      def render
+        raise NotImplementedError
+      end
+    end
+
+    class Ascii < Base
+      def render
+        pixels = zero.upto(canvas.height.pred).map do |y|
+          zero.upto(canvas.width.pred).map { |x| pixel_at(x, y) }
+        end
+
+        join_lines pixels.map { |line| join_pixels line }
+      end
+
+      private
+
+      def pixel_at(x, y)
+        canvas.pixel_at?(x, y) ? full_pixel : blank_pixel
+      end
+
+      def full_pixel
+        '@'.freeze
+      end
+
+      def blank_pixel
+        '-'.freeze
+      end
+
+      def join_pixels(line)
+        line.join(''.freeze)
+      end
+
+      def join_lines(lines)
+        lines.join("\n".freeze)
+      end
+    end
+
+    class Html < Base
+      TEMPLATE ='<!DOCTYPE html>
+        <html>
+        <head>
+        <title>Rendered Canvas</title>
+        <style type="text/css">
+        .canvas {
+          font-size: 1px;
+          line-height: 1px;
+        }
+        .canvas * {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border-radius: 5px;
+        }
+        .canvas i {
+          background-color: #eee;
+        }
+        .canvas b {
+          background-color: #333;
+        }
+        </style>
+        </head>
+        <body>
+        <div class="canvas">
+          %s
+        </div>
+        </body>
+        </html>
+      '.freeze
+
+      def render
+        TEMPLATE % super
+      end
+
+      private
+
+      def full_pixel
+        '<b></b>'.freeze
+      end
+
+      def blank_pixel
+        '<i></i>'.freeze
+      end
+
+      def join_lines(lines)
+        lines.join('<br>'.freeze)
+      end
     end
   end
 end
