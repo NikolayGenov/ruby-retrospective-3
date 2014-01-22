@@ -51,7 +51,7 @@ module Asm
 
     REGISTER_OPERATIONS.each do |operation|
       define_method operation do |target, value = 1|
-      push_operation target, operation, value
+        push_operation target, operation, value
       end
     end
 
